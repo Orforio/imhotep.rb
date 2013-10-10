@@ -20,6 +20,13 @@ class Page
 		@images = Array.new
 	end
 
+	def index?
+		@page.xpath('//section/@class').each do |section|
+			return true if section.content["topics"]
+		end
+		false
+	end
+
 	def extract_info
 		@page.xpath('//article//img/@src').each do |image|
 			@images << {:pid => image.content[REGEX_GRAPHICS, 1], :size => image.content[REGEX_GRAPHICS, 2]}
@@ -32,6 +39,11 @@ class MigrationLog
 	#TODO
 end
 
-example = Page.new(URL)
+# TESTING BELOW
 
+example = Page.new(URL)
 puts example.extract_info
+puts example.index?
+
+example2 = Page.new("http://www.bbc.co.uk/education/topics/zdsnb9q")
+puts example2.index?
