@@ -9,6 +9,20 @@ class Scraper
 	#example = Page.new(URL)
 
 	#puts example.extract_info
+	@site
+	@url
+
+	def initialize(url)
+		@url = url
+		@site = Array.new
+
+		self.scrape(@url)
+	end
+
+	def scrape(url)
+		page = Page.new(url)
+		puts "Is index!" if page.index?
+	end
 end
 
 class Page
@@ -27,7 +41,7 @@ class Page
 		false
 	end
 
-	def extract_info
+	def extract_images
 		@page.xpath('//article//img/@src').each do |image|
 			@images << {:pid => image.content[REGEX_GRAPHICS, 1], :size => image.content[REGEX_GRAPHICS, 2]}
 		end
@@ -40,10 +54,14 @@ class MigrationLog
 end
 
 # TESTING BELOW
-
+puts "Testing..."
 example = Page.new(URL)
-puts example.extract_info
-puts example.index?
+puts "Image contents of guide ztndmp3:"
+puts example.extract_images
+puts "Is this page an index? #{example.index?}"
 
 example2 = Page.new("http://www.bbc.co.uk/education/topics/zdsnb9q")
-puts example2.index?
+puts "Is this index page (zdsnb9q) an index? #{example2.index?}"
+
+puts "Scraping National 4 Lifeskills Maths..."
+example3 = Scraper.new("http://www.bbc.co.uk/education/topics/zdsnb9q")
