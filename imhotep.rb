@@ -3,12 +3,10 @@ require 'open-uri'
 
 URL = "http://www.bbc.co.uk/education/guides/ztndmp3/revision" # Hardcoded for testing
 PROXY = "http://www-cache.reith.bbc.co.uk:80" # Standard BBC Reith proxy
+USER_AGENT = "imhotep.rb BBC K&L Infographics checker"
 REGEX_GRAPHICS = /\/content\/(z\w+)\/(large|medium|small)/
 
 class Scraper
-	#example = Page.new(URL)
-
-	#puts example.extract_info
 	@site
 	@url
 
@@ -30,7 +28,7 @@ class Page
 	@images
 
 	def initialize(url)
-		@page = Nokogiri::HTML(open(url, :proxy => PROXY))
+		@page = Nokogiri::HTML(open(url, :proxy => PROXY, "User-Agent" => USER_AGENT))
 		@images = Array.new
 	end
 
@@ -46,6 +44,10 @@ class Page
 			@images << {:pid => image.content[REGEX_GRAPHICS, 1], :size => image.content[REGEX_GRAPHICS, 2]}
 		end
 		@images
+	end
+
+	def extract_urls
+		@page.xpath()
 	end
 end
 
