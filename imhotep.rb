@@ -1,11 +1,14 @@
 require 'nokogiri'
 require 'open-uri'
+require 'roo'
 
 URL = "http://www.bbc.co.uk/education/guides/ztndmp3/revision" # Hardcoded for testing
+SPREADSHEET = "Test/log.xlsx"
 PROXY = "http://www-cache.reith.bbc.co.uk:80" # Standard BBC Reith proxy
 USER_AGENT = "imhotep.rb BBC K&L Infographics checker"
 DOMAIN = "http://www.bbc.co.uk"
 REGEX_GRAPHICS = /\/content\/(z\w+)\/(large|medium|small)/
+REGEX_PIDS = /z\w+/
 
 class Scraper
 #	@site
@@ -38,10 +41,16 @@ class Scraper
 				self.scrape(page)
 			else
 				print "#"
-				@images << current_page.extract_images
+				current_page.extract_images.each { |image| @images << image }
+			#	@images << current_page.extract_images
 				self.scrape(current_page.more) if current_page.more
 			end
 		end
+	end
+
+	def found?(pid)
+		return true if @images.detect { |image| image[:pid] == pid }
+		false
 	end
 end
 
@@ -89,8 +98,34 @@ class Page
 	end
 end
 
-class MigrationLog
-	#TODO
+class Migrationlog
+	@migration_log
+	@pids
+
+	def initialize
+		@migration_log = Roo::Excelx.new(SPREADSHEET)
+		@migration_log.sheet(0) # Hardcoded for graphics
+		@pids = Array.new
+
+		self.extract_pids
+	end
+
+	def extract_pids
+		@migration_log.each(:pid => 'PIDs') do |row|
+			@pids << row if row[:pid][REGEX_PIDS]
+		end
+	end
+
+	def compare_pids(scraper)
+		@pids.each do |pid|
+			if scraper.found?(pid[:pid])
+			#	puts "Found PID #{pid[:pid]}"
+			else
+				puts "DID NOT FIND PID #{pid[:pid]}"
+			end
+		end
+	end
+
 end
 
 # TESTING BELOW
@@ -109,7 +144,12 @@ example3 = Scraper.new("http://www.bbc.co.uk/education/topics/zdsnb9q")
 =end
 
 example4 = Scraper.new("http://www.bbc.co.uk/education/subjects/zgm2pv4") # Whole N4 LS Maths scrape
-puts example4.images
+#puts example4.images
 
 #example5 = Scraper.new("http://www.bbc.co.uk/education/topics/z8np34j")
-#puts example5.images
+puts "Finished crawling, now comparing..."
+log = Migrationlog.new
+log.compare_pids(example4)
+
+
+#example6 = Migrationlog.new
