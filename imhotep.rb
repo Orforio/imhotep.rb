@@ -42,7 +42,6 @@ class Scraper
 			else
 				print "#"
 				current_page.extract_images.each { |image| @images << image }
-			#	@images << current_page.extract_images
 				self.scrape(current_page.more) if current_page.more
 			end
 		end
@@ -74,15 +73,13 @@ class Page
 
 	def more
 		@page.xpath("//div[contains(@class, 'k-icon-arrow-right') and not(contains(@class, 'k-inactive'))]/a").each do |next_url|
-		#	puts DOMAIN + next_url.attr('href')
 			return DOMAIN + next_url.attr('href')
 		end
-	#	puts "Nope"
 		false
 	end
 
 	def extract_images
-		@page.xpath("//article//img/@src").each do |image|
+		@page.xpath("//article//img/@src|//form//img/@src").each do |image|
 			@images << {:pid => image.content[REGEX_GRAPHICS, 1], :size => image.content[REGEX_GRAPHICS, 2], :url => @url} if image.content[REGEX_GRAPHICS]
 		end
 		@images
@@ -92,7 +89,7 @@ class Page
 		url_array = Array.new
 
 		@page.xpath("//section[contains(@class,'topics')]//ol/li//a").each do |link|
-			url_array << DOMAIN + link.attr('href') unless link.attr('title') #&& link.attr('title') != "Revise"
+			url_array << DOMAIN + link.attr('href') unless link.attr('title') && link.attr('title') == "Revise" # Avoids repetition of Revision link while allowing topic, test, and first instance of revision links
 		end
 		url_array
 	end
@@ -147,7 +144,7 @@ example4 = Scraper.new("http://www.bbc.co.uk/education/subjects/zgm2pv4") # Whol
 #puts example4.images
 
 #example5 = Scraper.new("http://www.bbc.co.uk/education/topics/z8np34j")
-puts "Finished crawling, now comparing..."
+puts "\nFinished crawling, now comparing..."
 log = Migrationlog.new
 log.compare_pids(example4)
 
