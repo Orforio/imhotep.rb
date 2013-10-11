@@ -10,10 +10,15 @@ REGEX_GRAPHICS = /\/content\/(z\w+)\/(large|medium|small)/
 class Scraper
 #	@site
 	@url
+	@images
+	attr_reader :images
 
 	def initialize(url)
 		@url = url
 	#	@site = Array.new
+		@images = Array.new
+
+		puts "Starting scrape..."
 
 		self.scrape(@url)
 	end
@@ -25,31 +30,41 @@ class Scraper
 		pages = start_page.extract_urls.collect if start_page.index?
 		
 		pages.each do |page|
-			puts page
-			self.scrape(page) if page.index?
+			current_page = Page.new(page)
+		#	puts page
+			if current_page.index?
+				print "."
+			#	puts page
+				self.scrape(page)
+			else
+				print "#"
+				@images << current_page.extract_images
+			end
 		end
 	end
 end
 
 class Page
+	@url
 	@page
 	@images
 
 	def initialize(url)
-		@page = Nokogiri::HTML(open(url, :proxy => PROXY, "User-Agent" => USER_AGENT))
+		@url = url
+		@page = Nokogiri::HTML(open(@url, :proxy => PROXY, "User-Agent" => USER_AGENT))
 		@images = Array.new
 	end
 
 	def index?
 		@page.xpath("//section/@class").each do |section|
-			return true if section.content["topics"]	# PROBLEM - main index doesn't have this
+			return true if section.content["topics"]
 		end
 		false
 	end
 
 	def extract_images
 		@page.xpath("//article//img/@src").each do |image|
-			@images << {:pid => image.content[REGEX_GRAPHICS, 1], :size => image.content[REGEX_GRAPHICS, 2]}
+			@images << {:pid => image.content[REGEX_GRAPHICS, 1], :size => image.content[REGEX_GRAPHICS, 2], :url => @url} if image.content[REGEX_GRAPHICS]
 		end
 		@images
 	end
@@ -58,7 +73,7 @@ class Page
 		url_array = Array.new
 
 		@page.xpath("//section[contains(@class,'topics')]//ol/li//a").each do |link|
-			url_array << DOMAIN + link.attr('href') if link.attr('title') == "Revise"
+			url_array << DOMAIN + link.attr('href') unless link.attr('title') #&& link.attr('title') != "Revise"
 		end
 		url_array
 	end
@@ -84,3 +99,4 @@ example3 = Scraper.new("http://www.bbc.co.uk/education/topics/zdsnb9q")
 =end
 
 example4 = Scraper.new("http://www.bbc.co.uk/education/subjects/zgm2pv4")
+puts example4.images
