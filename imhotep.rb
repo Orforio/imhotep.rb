@@ -27,7 +27,7 @@ class Scraper
 		start_page = Page.new(url)
 		pages = Array.new
 
-		pages = start_page.extract_urls.collect if start_page.index?
+		start_page.index? ? pages = start_page.extract_urls.collect : pages << url
 		
 		pages.each do |page|
 			current_page = Page.new(page)
@@ -39,6 +39,7 @@ class Scraper
 			else
 				print "#"
 				@images << current_page.extract_images
+				self.scrape(current_page.more) if current_page.more
 			end
 		end
 	end
@@ -59,6 +60,15 @@ class Page
 		@page.xpath("//section/@class").each do |section|
 			return true if section.content["topics"]
 		end
+		false
+	end
+
+	def more
+		@page.xpath("//div[contains(@class, 'k-icon-arrow-right') and not(contains(@class, 'k-inactive'))]/a").each do |next_url|
+		#	puts DOMAIN + next_url.attr('href')
+			return DOMAIN + next_url.attr('href')
+		end
+	#	puts "Nope"
 		false
 	end
 
@@ -98,5 +108,8 @@ puts "Scraping National 4 Lifeskills Maths..."
 example3 = Scraper.new("http://www.bbc.co.uk/education/topics/zdsnb9q")
 =end
 
-example4 = Scraper.new("http://www.bbc.co.uk/education/subjects/zgm2pv4")
+example4 = Scraper.new("http://www.bbc.co.uk/education/subjects/zgm2pv4") # Whole N4 LS Maths scrape
 puts example4.images
+
+#example5 = Scraper.new("http://www.bbc.co.uk/education/topics/z8np34j")
+#puts example5.images
