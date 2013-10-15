@@ -2,6 +2,7 @@ require 'optparse'
 require 'nokogiri'
 require 'open-uri'
 require 'roo'
+require 'csv'
 
 PROXY = "http://www-cache.reith.bbc.co.uk:80" # Standard BBC Reith proxy
 USER_AGENT = "imhotep.rb BBC K&L Infographics checker"
@@ -9,6 +10,8 @@ DOMAIN = "http://www.bbc.co.uk"
 SITE = "education"
 REGEX_GRAPHICS = /\/content\/(z\w+)\/(large|medium|small)/
 REGEX_PIDS = /z\w+/
+REGEX_URLS = /(?:subjects|topics|guides)\/z[a-z0-9]{6}/
+REGEX_LOG = /\.xlsx\z/
 
 class Optparser
 	def self.parse(args)
@@ -48,13 +51,13 @@ class Optchecker
 	end
 
 	def check_options(options)
-		unless options[:url] = options[:url][/(?:subjects|topics|guides)\/z[a-z0-9]{6}/]
+		unless options[:url] = options[:url][REGEX_URLS]
 			puts "Invalid URL PATH, needs to be in the format '[subjects/topics/guides]/pid'"
 			puts "Example: 'subjects/zgm2pv4'"
 			exit
 		end
 
-		unless options[:log][/\.xlsx\z/] && File::exists?(options[:log])
+		unless options[:log][REGEX_LOG] && File::exists?(options[:log])
 			puts "Invalid MIGRATION LOG, needs to exist and end with '.xlsx'"
 			exit
 		end
@@ -65,21 +68,19 @@ class Optchecker
 
 	def start_program(options)
 		scraper = Scraper.new(options[:url])
-		puts "\nFinished crawling, now comparing..."
 		log = Migrationlog.new(options[:log])
 		log.compare_pids(scraper)
+		log.write_results(options[:url], options[:log])
 	end
 end
 
 class Scraper
-#	@site
 	@url
 	@images
 	attr_reader :images
 
 	def initialize(url)
 		@url = url
-	#	@site = Array.new
 		@images = Array.new
 
 		puts "Starting scrape..."
@@ -108,6 +109,10 @@ class Scraper
 		end
 	end
 
+	def found(pid)
+		@images.find_all { |image| image[:pid] == pid }
+	end
+
 	def found?(pid)
 		return true if @images.detect { |image| image[:pid] == pid }
 		false
@@ -121,7 +126,7 @@ class Page
 
 	def initialize(url)
 		@url = url
-		@page = Nokogiri::HTML(open(@url, :proxy => PROXY, "User-Agent" => USER_AGENT))
+		@page = Nokogiri::HTML(open(@url, :proxy => PROXY, "User-Agent" => USER_AGENT)) 
 		@images = Array.new
 	end
 
@@ -158,58 +163,57 @@ end
 
 class Migrationlog
 	@migration_log
+	@result_log
 	@pids
 
 	def initialize(log)
 		@migration_log = Roo::Excelx.new(log)
 		@migration_log.sheet(0) # Hardcoded for graphics
+		@result_log = Array.new
 		@pids = Array.new
 
 		self.extract_pids
 	end
 
 	def extract_pids
-		@migration_log.each(:pid => 'PIDs') do |row|
+		@migration_log.each(:job => 'Job No', :filename => 'New filename', :pid => 'PIDs') do |row|
 			@pids << row if row[:pid][REGEX_PIDS]
 		end
 	end
 
 	def compare_pids(scraper)
+		puts "\nNow comparing..."
 		@pids.each do |pid|
 			if scraper.found?(pid[:pid])
-			#	puts "Found PID #{pid[:pid]}"
+				scraper.found(pid[:pid]).each do |page|
+					@result_log << {:pid => pid[:pid], :job => pid[:job], :filename => pid[:filename], :url => page[:url], :success => true}
+				end
 			else
-				puts "DID NOT FIND PID #{pid[:pid]}"
+				@result_log << {:pid => pid[:pid], :job => pid[:job], :filename => pid[:filename], :success => false}
+				puts "NOT FOUND: Job #{pid[:job]}, PID #{pid[:pid]}"
 			end
 		end
 	end
 
+	def write_results(url, log)
+		puts "Writing results..."
+
+		CSV::open("results.csv", "wb") do |csv|
+			csv << ["Results for #{url} vs #{log}"]
+			csv << ["FAILURES"]
+			csv << ["Job No.", "Filename", "PID"]
+			@result_log.each do |line|
+				csv << [line[:job], line[:filename], line[:pid]] unless line[:success]
+			end
+			csv << [""]
+			csv << ["SUCCESSES"]
+			csv << ["Job No.", "Filename", "PID", "URL"]
+			@result_log.each do |line|
+				csv << [line[:job], line[:filename], line[:pid], line[:url]] if line[:success]
+			end
+		end
+		puts "Complete"
+	end
 end
-
-# TESTING BELOW
-=begin
-puts "Testing..."
-example = Page.new(URL)
-puts "Image contents of guide ztndmp3:"
-puts example.extract_images
-puts "Is this page an index? #{example.index?}"
-
-example2 = Page.new("http://www.bbc.co.uk/education/topics/zdsnb9q")
-puts "Is this index page (zdsnb9q) an index? #{example2.index?}"
-
-puts "Scraping National 4 Lifeskills Maths..."
-example3 = Scraper.new("http://www.bbc.co.uk/education/topics/zdsnb9q")
-=end
-
-# example4 = Scraper.new("http://www.bbc.co.uk/education/subjects/zgm2pv4") # Whole N4 LS Maths scrape
-#puts example4.images
-
-#example5 = Scraper.new("http://www.bbc.co.uk/education/topics/z8np34j")
-# puts "\nFinished crawling, now comparing..."
-# log = Migrationlog.new
-# log.compare_pids(example4)
-
-
-#example6 = Migrationlog.new
 
 Optchecker.new(Optparser.parse(ARGV))
