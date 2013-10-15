@@ -22,29 +22,29 @@ You also need a couple of dependencies, each of which you only ever need to inst
 
     gem install -p http://www-cache.reith.bbc.co.uk:80 roo
 
- This should install both roo, necessary to read migration logs, and nokogiri, used to scrape the website.
+This should install both roo, necessary to read migration logs, and nokogiri, used to scrape the website.
 
- ## Usage
+## Usage
 
- For ease of use, place the imhotep.rb script and the migration log in an easy-to-type directory - I'd recommend something like D:\imhotep\ as an example.
+For ease of use, place the imhotep.rb script and the migration log in an easy-to-type directory - I'd recommend something like D:\imhotep\ as an example.
 
- Then, inside the command line, run:
+Then, inside the command line, run:
 
-     ruby imhotep.rb -u URL -l LOG.XLSX
+    ruby imhotep.rb -u URL -l LOG.XLSX
 
- - URL is the main index page for the subject you're trying to check (example: http://www.bbc.co.uk/education/subjects/zgm2pv4 but just **subjects/zgm2pv4** will work)
- - LOG.XLSX is the migration log to check against. It must be saved in the .xlsx format (example: **nat4_lifeskills_maths_migration.xlsx**)
- - You can also run "ruby imhotep.rb -h" for inline help.
+- URL is the main index page for the subject you're trying to check (example: http://www.bbc.co.uk/education/subjects/zgm2pv4 but just **subjects/zgm2pv4** will work)
+- LOG.XLSX is the migration log to check against. It must be saved in the .xlsx format (example: **nat4_lifeskills_maths_migration.xlsx**)
+- You can also run "ruby imhotep.rb -h" for inline help.
 
- When the script starts scraping, you will see dots and hashes appear on the screen - this is just to let you know it's working. A dot means it's found an index page it will follow, and a hash represents a recognised image.
+When the script starts scraping, you will see dots and hashes appear on the screen - this is just to let you know it's working. A dot means it's found an index page it will follow, and a hash represents a recognised image.
 
- When finished, the script generates **results.csv** which contains a list of images it couldn't find, as well as all the images it did, and where it found them.
+When finished, the script generates **results.csv** which contains a list of images it couldn't find, as well as all the images it did, and where it found them.
 
- ## Known Issues
+## Known Issues
 
- - Please ensure the migration log doesn't have empty rows at the end of the file - delete them all before running the script.
- - The script currently does not check that each image is present in all its expected sizes, the results are valid only for the "small" size.
+- Please ensure the migration log doesn't have empty rows at the end of the file - delete them all before running the script.
+- The script currently does not check that each image is present in all its expected sizes, the results are valid only for the "small" size.
 
- ## Why "imhotep"?
+## Why "imhotep"?
 
- Because *Imhotep is invisible*. And sometimes, so are infographics, if you're forced to go through each one by hand! It is mainly a cheap Look Around You joke. Also, if you rotate, move and rearrange the letters you kind of get the name of the New K&L Product...
+Because *Imhotep is invisible*. And sometimes, so are infographics, if you're forced to go through each one by hand! It is mainly a cheap Look Around You joke. Also, if you rotate, move and rearrange the letters you kind of get the name of the New K&L Product...
