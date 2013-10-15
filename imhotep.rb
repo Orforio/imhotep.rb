@@ -1,3 +1,4 @@
+require 'optparse'
 require 'nokogiri'
 require 'open-uri'
 require 'roo'
@@ -9,6 +10,38 @@ USER_AGENT = "imhotep.rb BBC K&L Infographics checker"
 DOMAIN = "http://www.bbc.co.uk"
 REGEX_GRAPHICS = /\/content\/(z\w+)\/(large|medium|small)/
 REGEX_PIDS = /z\w+/
+
+class Optparser
+	def self.parse(args)
+		options = {}
+
+		option_parser = OptionParser.new do |opts|
+			opts.banner = "Usage: imhotep.rb [options]"
+			opts.separator ""
+			opts.separator "Specific options:"
+
+			opts.on("-u", "--url PATH", "Scrape the specified page (in the format 'topics/z012345')") do |url|
+				options[:url] = url
+			end
+
+			opts.on("-l", "--log LOG.XLSX", "Use the specified migration log") do |log|
+				options[:log] = log
+			end
+
+			opts.on_tail("-h", "--help", "Show this message") do
+				puts opts
+				exit
+			end
+
+			puts opts if args.empty?
+		end
+
+		option_parser.parse!(args)
+		raise OptionParser::MissingArgument if options[:url].nil? || options[:log].nil?
+		options
+	end
+end
+
 
 class Scraper
 #	@site
@@ -140,13 +173,16 @@ puts "Scraping National 4 Lifeskills Maths..."
 example3 = Scraper.new("http://www.bbc.co.uk/education/topics/zdsnb9q")
 =end
 
-example4 = Scraper.new("http://www.bbc.co.uk/education/subjects/zgm2pv4") # Whole N4 LS Maths scrape
+# example4 = Scraper.new("http://www.bbc.co.uk/education/subjects/zgm2pv4") # Whole N4 LS Maths scrape
 #puts example4.images
 
 #example5 = Scraper.new("http://www.bbc.co.uk/education/topics/z8np34j")
-puts "\nFinished crawling, now comparing..."
-log = Migrationlog.new
-log.compare_pids(example4)
+# puts "\nFinished crawling, now comparing..."
+# log = Migrationlog.new
+# log.compare_pids(example4)
 
 
 #example6 = Migrationlog.new
+
+options = Optparser.parse(ARGV)
+p options
