@@ -54,8 +54,8 @@ class Optchecker
 			exit
 		end
 
-		unless options[:log][/\.xlsx\z/]
-			puts "Invalid MIGRATION LOG, needs to end with '.xlsx'"
+		unless options[:log][/\.xlsx\z/] && File::exists?(options[:log])
+			puts "Invalid MIGRATION LOG, needs to exist and end with '.xlsx'"
 			exit
 		end
 
