@@ -3,11 +3,10 @@ require 'nokogiri'
 require 'open-uri'
 require 'roo'
 
-URL = "http://www.bbc.co.uk/education/guides/ztndmp3/revision" # Hardcoded for testing
-SPREADSHEET = "Test/log.xlsx"
 PROXY = "http://www-cache.reith.bbc.co.uk:80" # Standard BBC Reith proxy
 USER_AGENT = "imhotep.rb BBC K&L Infographics checker"
 DOMAIN = "http://www.bbc.co.uk"
+SITE = "education"
 REGEX_GRAPHICS = /\/content\/(z\w+)\/(large|medium|small)/
 REGEX_PIDS = /z\w+/
 
@@ -42,6 +41,35 @@ class Optparser
 	end
 end
 
+class Optchecker
+	def initialize(options)
+		exit unless options
+		self.check_options(options)
+	end
+
+	def check_options(options)
+		unless options[:url] = options[:url][/(?:subjects|topics|guides)\/z[a-z0-9]{6}/]
+			puts "Invalid URL PATH, needs to be in the format '[subjects/topics/guides]/pid'"
+			puts "Example: 'subjects/zgm2pv4'"
+			exit
+		end
+
+		unless options[:log][/\.xlsx\z/]
+			puts "Invalid MIGRATION LOG, needs to end with '.xlsx'"
+			exit
+		end
+
+		options[:url] = DOMAIN + "/" + SITE + "/" + options[:url]
+		self.start_program(options)
+	end
+
+	def start_program(options)
+		scraper = Scraper.new(options[:url])
+		puts "\nFinished crawling, now comparing..."
+		log = Migrationlog.new(options[:log])
+		log.compare_pids(scraper)
+	end
+end
 
 class Scraper
 #	@site
@@ -132,8 +160,8 @@ class Migrationlog
 	@migration_log
 	@pids
 
-	def initialize
-		@migration_log = Roo::Excelx.new(SPREADSHEET)
+	def initialize(log)
+		@migration_log = Roo::Excelx.new(log)
 		@migration_log.sheet(0) # Hardcoded for graphics
 		@pids = Array.new
 
@@ -184,5 +212,4 @@ example3 = Scraper.new("http://www.bbc.co.uk/education/topics/zdsnb9q")
 
 #example6 = Migrationlog.new
 
-options = Optparser.parse(ARGV)
-p options
+Optchecker.new(Optparser.parse(ARGV))
