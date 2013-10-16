@@ -98,8 +98,8 @@ class Scraper
 			current_page = Page.new(page)
 		#	puts page
 			if current_page.index?
-				print "."
-			#	puts page
+			#	print "."
+				puts "\n#{page}"
 				self.scrape(page)
 			else
 				print "#"
@@ -132,14 +132,21 @@ class Page
 
 	def index?
 		@page.xpath("//section/@class").each do |section|
-			return true if section.content["topics"]
+			return true if section.content["topics"] && !clips?
+		end
+		false
+	end
+
+	def clips?
+		@page.xpath("//section/div/ul/li/@class").each do |li|
+			return true if li.content["c-cgf-1-tab-clips"] && li.content["k-is-selected"]
 		end
 		false
 	end
 
 	def more
 		@page.xpath("//div[contains(@class, 'k-icon-arrow-right') and not(contains(@class, 'k-inactive'))]/a").each do |next_url|
-			return DOMAIN + next_url.attr('href')
+			return DOMAIN + next_url.attr('href') if next_url.attr('href')[/\/revision/]
 		end
 		false
 	end
