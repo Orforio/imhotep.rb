@@ -30,10 +30,11 @@ For ease of use, place the imhotep.rb script and the migration log in an easy-to
 
 Then, inside the command line, run:
 
-    ruby imhotep.rb -u URL -l LOG.XLSX
+    ruby imhotep.rb -u URL -l LOG.XLSX [-g/-p/-b]
 
 - URL is the main index page for the subject you're trying to check (example: http://www.bbc.co.uk/education/subjects/zgm2pv4 but just **subjects/zgm2pv4** will work)
 - LOG.XLSX is the migration log to check against. It must be saved in the .xlsx format (example: **nat4_lifeskills_maths_migration.xlsx**)
+- **-g** to just check the graphics, **-p** to just check the photos, and **-b** for both graphics and photos - graphics-only is the default
 - You can also run "ruby imhotep.rb -h" for inline help.
 
 When the script starts scraping, you will see dots and hashes appear on the screen - this is just to let you know it's working. A dot means it's found an index page it will follow, and a hash represents a recognised image.
@@ -43,6 +44,7 @@ When finished, the script generates **results.csv** which contains a list of ima
 ## Known Issues
 
 - Please ensure the migration log doesn't have empty rows at the end of the file - delete them all before running the script.
+- Please ensure the columns are named correctly - the PIDs column should be named "PIDs", not "PID's".
 - The script currently does not check that each image is present in all its expected sizes, the results are valid only for the "small" size.
 
 ## Why "imhotep"?
