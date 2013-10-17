@@ -9,7 +9,8 @@ USER_AGENT = "imhotep.rb BBC K&L Infographics checker"
 DOMAIN = "http://www.bbc.co.uk"
 SITE = "education"
 REGEX_GRAPHICS = /\/content\/(z\w+)\/(large|medium|small)/
-REGEX_PIDS = /z\w+/
+REGEX_PHOTOS = /\/ic\/320xn\/(p[a-z0-9]{6,})\./
+REGEX_PIDS = /(?:z|p)\w+/
 REGEX_URLS = /(?:subjects|topics|guides)\/z[a-z0-9]{6}/
 REGEX_LOG = /\.xlsx\z/
 
@@ -18,6 +19,8 @@ $errors = Array.new
 class Optparser
 	def self.parse(args)
 		options = {}
+		options[:graphics] = true
+		options[:photos] = false
 
 		option_parser = OptionParser.new do |opts|
 			opts.banner = "Usage: imhotep.rb [options]"
@@ -30,6 +33,21 @@ class Optparser
 
 			opts.on("-l", "--log LOG.XLSX", "Use the specified migration log") do |log|
 				options[:log] = log
+			end
+
+			opts.on("-g", "--graphics", "Check for images in the graphics tab (default)") do |g|
+				options[:graphics] = g
+				options[:photos] = false
+			end
+
+			opts.on("-p", "--photos", "Check for images in the photos tab") do |p|
+				options[:photos] = p
+				options[:graphics] = false
+			end
+
+			opts.on("-b", "--both", "Check for images in both the graphics and photos tabs") do |b|
+				options[:graphics] = b
+				options[:photos] = b
 			end
 
 			opts.on_tail("-h", "--help", "Show this message") do
@@ -69,10 +87,17 @@ class Optchecker
 	end
 
 	def start_program(options)
-		scraper = Scraper.new(options[:url])
-		log = Migrationlog.new(options[:log])
-		log.compare_pids(scraper)
-		log.write_results(options[:url], options[:log])
+		scraper = Scraper.new(options[:url], options[:graphics], options[:photos])
+		if options[:graphics]
+			log_graphics = Migrationlog.new(options[:log], "graphics")
+			log_graphics.compare_pids(scraper)
+			log_graphics.write_results(options[:url], options[:log], "Graphics")
+		end
+		if options[:photos]
+			log_photos = Migrationlog.new(options[:log], "photos")
+			log_photos.compare_pids(scraper)
+			log_photos.write_results(options[:url], options[:log], "Photos")
+		end
 		Errorwriter.write_errors
 	end
 end
@@ -80,11 +105,13 @@ end
 class Scraper
 	@url
 	@images
+	@options
 	attr_reader :images
 
-	def initialize(url)
+	def initialize(url, graphics, photos)
 		@url = url
 		@images = Array.new
+		@options = {:graphics => graphics, :photos => photos}
 
 		puts "Starting scrape..."
 
@@ -93,13 +120,13 @@ class Scraper
 
 	def scrape(url)
 		begin
-			start_page = Page.new(url)
+			start_page = Page.new(url, @options)
 			pages = Array.new
 
 			start_page.index? ? pages = start_page.extract_urls.collect : pages << url
 			
 			pages.each do |page|
-				current_page = Page.new(page)
+				current_page = Page.new(page, @options)
 			#	puts page
 				if current_page.index?
 				#	print "."
@@ -130,10 +157,13 @@ class Page
 	@url
 	@page
 	@images
+	@options
 
-	def initialize(url)
+	def initialize(url, options = {})
 		@url = url
 		@images = Array.new
+		@options = options
+
 		begin
 			@page = Nokogiri::HTML(open(@url, :proxy => PROXY, "User-Agent" => USER_AGENT))
 		rescue OpenURI::HTTPError => e
@@ -166,8 +196,11 @@ class Page
 	end
 
 	def extract_images
-		@page.xpath("//article//img/@src|//form//img/@src").each do |image|
-			@images << {:pid => image.content[REGEX_GRAPHICS, 1], :size => image.content[REGEX_GRAPHICS, 2], :url => @url} if image.content[REGEX_GRAPHICS]
+		if @options[:graphics]
+			@page.xpath("//article//img/@src|//form//img/@src").each do |image|
+				@images << {:pid => image.content[REGEX_GRAPHICS, 1], :size => image.content[REGEX_GRAPHICS, 2], :url => @url} if @options[:graphics] && image.content[REGEX_GRAPHICS]
+				@images << {:pid => image.content[REGEX_PHOTOS, 1], :url => @url} if @options[:photos] && image.content[REGEX_PHOTOS]
+			end
 		end
 		@images
 	end
@@ -187,9 +220,10 @@ class Migrationlog
 	@result_log
 	@pids
 
-	def initialize(log)
+	def initialize(log, mode)
 		@migration_log = Roo::Excelx.new(log)
-		@migration_log.sheet(0) # Hardcoded for graphics
+		@migration_log.sheet(0)
+		@migration_log.sheet(1) if mode == "photos"
 		@result_log = Array.new
 		@pids = Array.new
 
@@ -216,11 +250,11 @@ class Migrationlog
 		end
 	end
 
-	def write_results(url, log)
+	def write_results(url, log, mode)
 		puts "Writing results..."
 
 		CSV::open("results.csv", "ab") do |csv|
-			csv << ["Results for #{url} vs #{log}"]
+			csv << ["#{mode} results for #{url} vs #{log}"]
 			csv << ["FAILURES"]
 			csv << ["Job No.", "Filename", "PID"]
 			@result_log.each do |line|
@@ -232,6 +266,7 @@ class Migrationlog
 			@result_log.each do |line|
 				csv << [line[:job], line[:filename], line[:pid], line[:url]] if line[:success]
 			end
+			csv << [""]
 		end
 		puts "Complete"
 	end
@@ -240,13 +275,13 @@ end
 class Errorwriter
 	def self.write_errors
 		CSV::open("results.csv", "ab") do |csv|
-			if $errors
-				csv << [""]
+			unless $errors.empty?
 				csv << ["ERRORS"]
 				csv << ["Error", "URL"]
 				$errors.each do |line|
 					csv << [line[:error], line[:url]]
 				end
+				csv << [""]
 			end
 		end
 	end
