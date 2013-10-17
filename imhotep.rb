@@ -13,6 +13,8 @@ REGEX_PIDS = /z\w+/
 REGEX_URLS = /(?:subjects|topics|guides)\/z[a-z0-9]{6}/
 REGEX_LOG = /\.xlsx\z/
 
+$errors = Array.new
+
 class Optparser
 	def self.parse(args)
 		options = {}
@@ -71,6 +73,7 @@ class Optchecker
 		log = Migrationlog.new(options[:log])
 		log.compare_pids(scraper)
 		log.write_results(options[:url], options[:log])
+		Errorwriter.write_errors
 	end
 end
 
@@ -136,6 +139,7 @@ class Page
 		rescue OpenURI::HTTPError => e
 			puts "\nERROR: #{e.message}"
 			puts "Failure URL: #{@url}"
+			$errors << {:error => e.message, :url => @url}
 			raise
 		end
 	end
@@ -215,7 +219,7 @@ class Migrationlog
 	def write_results(url, log)
 		puts "Writing results..."
 
-		CSV::open("results.csv", "wb") do |csv|
+		CSV::open("results.csv", "ab") do |csv|
 			csv << ["Results for #{url} vs #{log}"]
 			csv << ["FAILURES"]
 			csv << ["Job No.", "Filename", "PID"]
@@ -230,6 +234,21 @@ class Migrationlog
 			end
 		end
 		puts "Complete"
+	end
+end
+
+class Errorwriter
+	def self.write_errors
+		CSV::open("results.csv", "ab") do |csv|
+			if $errors
+				csv << [""]
+				csv << ["ERRORS"]
+				csv << ["Error", "URL"]
+				$errors.each do |line|
+					csv << [line[:error], line[:url]]
+				end
+			end
+		end
 	end
 end
 
