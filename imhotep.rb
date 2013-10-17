@@ -89,23 +89,27 @@ class Scraper
 	end
 
 	def scrape(url)
-		start_page = Page.new(url)
-		pages = Array.new
+		begin
+			start_page = Page.new(url)
+			pages = Array.new
 
-		start_page.index? ? pages = start_page.extract_urls.collect : pages << url
-		
-		pages.each do |page|
-			current_page = Page.new(page)
-		#	puts page
-			if current_page.index?
-			#	print "."
-				puts "\n#{page}"
-				self.scrape(page)
-			else
-				print "#"
-				current_page.extract_images.each { |image| @images << image }
-				self.scrape(current_page.more) if current_page.more
+			start_page.index? ? pages = start_page.extract_urls.collect : pages << url
+			
+			pages.each do |page|
+				current_page = Page.new(page)
+			#	puts page
+				if current_page.index?
+				#	print "."
+					puts "\n#{page}"
+					self.scrape(page)
+				else
+					print "#"
+					current_page.extract_images.each { |image| @images << image }
+					self.scrape(current_page.more) if current_page.more
+				end
 			end
+		rescue OpenURI::HTTPError
+			puts "Skipping..."
 		end
 	end
 
@@ -126,8 +130,14 @@ class Page
 
 	def initialize(url)
 		@url = url
-		@page = Nokogiri::HTML(open(@url, :proxy => PROXY, "User-Agent" => USER_AGENT)) 
 		@images = Array.new
+		begin
+			@page = Nokogiri::HTML(open(@url, :proxy => PROXY, "User-Agent" => USER_AGENT))
+		rescue OpenURI::HTTPError => e
+			puts "\nERROR: #{e.message}"
+			puts "Failure URL: #{@url}"
+			raise
+		end
 	end
 
 	def index?
