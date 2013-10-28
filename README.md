@@ -2,7 +2,7 @@
 
 A tool for the K&L Infographics teams to verify that all images in the migration log are accounted for in the New K&L Product.
 
-The script takes a source URL and a migration log, then scrapes the source URL and all indexs, revision bites and test bites, collecting a list of images it's found. It then goes through each entry in the migration log, checking to see if it found an image for each given PID. It finally outputs a .csv of results.
+The script takes a source URL and a migration log, then scrapes the source URL and all indexs, revision bites and test bites, collecting a list of images it's found. It then goes through each entry in the migration log, checking to see if it found an image for each given PID. It will also check that each image size defined in the migrations log is actually present on the server. It finally outputs a .csv of results.
 
 ## Installation
 
@@ -21,8 +21,10 @@ If you don't have Ruby or it's outdated, and you're on a Windows machine, go to 
 You also need a couple of dependencies, each of which you only ever need to install once. If the script complains about a missing dependency, run the following:
 
     gem install -p http://www-cache.reith.bbc.co.uk:80 roo
+    gem install -p http://www-cache.reith.bbc.co.uk:80 fastimage
 
 This should install both roo, necessary to read migration logs, and nokogiri, used to scrape the website.
+Fastimage is used to get the image sizes during comparison.
 
 ## Usage
 
@@ -37,7 +39,7 @@ Then, inside the command line, run:
 - **-g** to just check the graphics, **-p** to just check the photos, and **-b** for both graphics and photos - graphics-only is the default
 - You can also run "ruby imhotep.rb -h" for inline help.
 
-When the script starts scraping, you will see dots and hashes appear on the screen - this is just to let you know it's working. A dot means it's found an index page it will follow, and a hash represents a recognised image.
+When the script starts scraping, you will see ULRs and hashes appear on the screen - this is just to let you know it's working. The URL shows you which index page it's currently scraping, and a hash represents a recognised image.
 
 When finished, the script generates **results.csv** which contains a list of images it couldn't find, as well as all the images it did, and where it found them.
 
@@ -45,7 +47,6 @@ When finished, the script generates **results.csv** which contains a list of ima
 
 - Please ensure the migration log doesn't have empty rows at the end of the file - delete them all before running the script.
 - Please ensure the columns are named correctly - the PIDs column should be named "PIDs", not "PID's".
-- The script currently does not check that each image is present in all its expected sizes, the results are valid only for the "small" size.
 
 ## Why "imhotep"?
 

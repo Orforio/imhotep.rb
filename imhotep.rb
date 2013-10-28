@@ -3,12 +3,14 @@ require 'nokogiri'
 require 'open-uri'
 require 'roo'
 require 'csv'
+require 'fastimage'
 
 PROXY = "http://www-cache.reith.bbc.co.uk:80" # Standard BBC Reith proxy
 USER_AGENT = "imhotep.rb BBC K&L Infographics checker"
 DOMAIN = "http://www.bbc.co.uk"
 SITE = "education"
 REGEX_GRAPHICS = /\/content\/(z\w+)\/(large|medium|small)/
+REGEX_GRAPHICS_SIZES_TEXT = /large|medium|small/
 REGEX_PHOTOS = /\/ic\/320xn\/(p[a-z0-9]{6,})\./
 REGEX_PIDS = /(?:z|p)\w+/
 REGEX_URLS = /(?:subjects|topics|guides)\/z[a-z0-9]{6}/
@@ -129,7 +131,6 @@ class Scraper
 				current_page = Page.new(page, @options)
 			#	puts page
 				if current_page.index?
-				#	print "."
 					puts "\n#{page}"
 					self.scrape(page)
 				else
@@ -198,8 +199,16 @@ class Page
 	def extract_images
 		if @options[:graphics]
 			@page.xpath("//article//img/@src|//form//img/@src").each do |image|
-				@images << {:pid => image.content[REGEX_GRAPHICS, 1], :size => image.content[REGEX_GRAPHICS, 2], :url => @url} if @options[:graphics] && image.content[REGEX_GRAPHICS]
-				@images << {:pid => image.content[REGEX_PHOTOS, 1], :url => @url} if @options[:photos] && image.content[REGEX_PHOTOS]
+				if @options[:graphics] && image.content[REGEX_GRAPHICS]
+					sizes = Hash.new
+					image_root = image.content.sub(REGEX_GRAPHICS_SIZES_TEXT, '')
+					sizes[:small] = FastImage.size(image_root + 'small') || 0 # Chance to make this bit DRYer
+					sizes[:medium] = FastImage.size(image_root + 'medium') || sizes[:small]
+					sizes[:large] = FastImage.size(image_root + 'large') || sizes[:small]
+					@images << {:pid => image.content[REGEX_GRAPHICS, 1], :size => sizes, :url => @url}
+				elsif @options[:photos] && image.content[REGEX_PHOTOS]
+					@images << {:pid => image.content[REGEX_PHOTOS, 1], :url => @url}
+				end
 			end
 		end
 		@images
@@ -219,11 +228,17 @@ class Migrationlog
 	@migration_log
 	@result_log
 	@pids
+	@mode
 
 	def initialize(log, mode)
 		@migration_log = Roo::Excelx.new(log)
-		@migration_log.sheet(0)
-		@migration_log.sheet(1) if mode == "photos"
+		if mode == "photos"
+			@migration_log.sheet(1)
+			@mode = 1
+		else
+			@migration_log.sheet(0)
+			@mode = 0
+		end
 		@result_log = Array.new
 		@pids = Array.new
 
@@ -231,8 +246,15 @@ class Migrationlog
 	end
 
 	def extract_pids
-		@migration_log.each(:job => 'Job No', :filename => 'New filename', :pid => 'PIDs') do |row|
-			@pids << row if row[:pid][REGEX_PIDS]
+		if @mode == 0
+			@migration_log.each(:job => 'Job No', :filename => 'New filename', :pid => 'PIDs', :large => 'Large width', :medium => 'Medium width', :small => 'Small width') do |row| # Chance to make this DRYer
+				row[:large], row[:medium], row[:small] = row[:large].to_i, row[:medium].to_i, row[:small].to_i
+				@pids << row if row[:pid][REGEX_PIDS]
+			end
+		else
+			@migration_log.each(:job => 'Job No', :filename => 'New filename', :pid => 'PIDs') do |row|
+				@pids << row if row[:pid][REGEX_PIDS]
+			end
 		end
 	end
 
@@ -241,7 +263,18 @@ class Migrationlog
 		@pids.each do |pid|
 			if scraper.found?(pid[:pid])
 				scraper.found(pid[:pid]).each do |page|
-					@result_log << {:pid => pid[:pid], :job => pid[:job], :filename => pid[:filename], :url => page[:url], :success => true}
+					failure = Array.new
+					if @mode == 0
+						failure << {:size => :large, :value => page[:size][:large][0], :expected => pid[:large]} unless page[:size][:large][0] == pid[:large]
+						failure << {:size => :medium, :value => page[:size][:medium][0], :expected => pid[:medium]} unless page[:size][:medium][0] == pid[:medium]
+						failure << {:size => :small, :value => page[:size][:small][0], :expected => pid[:small]} unless page[:size][:small][0] == pid[:small]
+					end
+					if failure.size > 0
+						@result_log << {:pid => pid[:pid], :job => pid[:job], :filename => pid[:filename], :failures => failure, :success => false}
+						puts "IMAGE MISMATCH: Job #{pid[:job]}, PID #{pid[:pid]}"
+					else
+						@result_log << {:pid => pid[:pid], :job => pid[:job], :filename => pid[:filename], :url => page[:url], :success => true}
+					end
 				end
 			else
 				@result_log << {:pid => pid[:pid], :job => pid[:job], :filename => pid[:filename], :success => false}
@@ -256,9 +289,13 @@ class Migrationlog
 		CSV::open("results.csv", "ab") do |csv|
 			csv << ["#{mode} results for #{url} vs #{log}"]
 			csv << ["FAILURES"]
-			csv << ["Job No.", "Filename", "PID"]
+			csv << ["Job No.", "Filename", "PID", "Other"]
 			@result_log.each do |line|
-				csv << [line[:job], line[:filename], line[:pid]] unless line[:success]
+				if line[:failures]
+					csv << [line[:job], line[:filename], line[:pid], format_failures(line[:failures])]
+				else
+					csv << [line[:job], line[:filename], line[:pid]] unless line[:success]
+				end
 			end
 			csv << [""]
 			csv << ["SUCCESSES"]
@@ -269,6 +306,15 @@ class Migrationlog
 			csv << [""]
 		end
 		puts "Complete"
+	end
+
+	private
+	def format_failures(failures)
+		formatted_failures = "IMAGE SIZES: "
+		failures.each do |failure|
+			formatted_failures << "|| #{failure[:size]} is #{failure[:value]}, expected #{failure[:expected]} "
+		end
+		formatted_failures
 	end
 end
 
