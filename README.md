@@ -39,7 +39,7 @@ Then, inside the command line, run:
 - **-g** to just check the graphics, **-p** to just check the photos, and **-b** for both graphics and photos - graphics-only is the default
 - You can also run "ruby imhotep.rb -h" for inline help.
 
-When the script starts scraping, you will see ULRs and hashes appear on the screen - this is just to let you know it's working. The URL shows you which index page it's currently scraping, and a hash represents a recognised image.
+When the script starts scraping, you will see URLs and hashes appear on the screen - this is just to let you know it's working. The URL shows you which index page it's currently scraping, and a hash represents a recognised image.
 
 When finished, the script generates **results.csv** which contains a list of images it couldn't find, as well as all the images it did, and where it found them.
 
