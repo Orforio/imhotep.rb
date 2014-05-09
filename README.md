@@ -1,6 +1,6 @@
 # imhotep.rb
 
-A tool for the K&L Infographics teams to verify that all images in the migration log are accounted for in the New K&L Product.
+A tool for the K&L Bitesize teams to verify that all images in the migration log are accounted for in the New K&L Product.
 
 The script takes a source URL and a migration log, then scrapes the source URL and all indexs, revision bites and test bites, collecting a list of images it's found. It then goes through each entry in the migration log, checking to see if it found an image for each given PID. It will also check that each image size defined in the migrations log is actually present on the server. It finally outputs a .csv of results.
 
@@ -18,7 +18,11 @@ As long as you have Ruby 2 or later you should be OK. I haven't tested the scrip
 
 If you don't have Ruby or it's outdated, and you're on a Windows machine, go to http://rubyinstaller.org and follow the instructions. Make sure to select the "Add Ruby to PATH" option.
 
-You also need a couple of dependencies, each of which you only ever need to install once. If the script complains about a missing dependency, run the following:
+You also need a couple of dependencies, each of which you only ever need to install once. If you have Bundler, run:
+
+    bundle install
+
+Otherwise you can run the following to install the dependencies manually:
 
     gem install -p http://www-cache.reith.bbc.co.uk:80 roo
     gem install -p http://www-cache.reith.bbc.co.uk:80 fastimage
@@ -50,4 +54,4 @@ When finished, the script generates **results.csv** which contains a list of ima
 
 ## Why "imhotep"?
 
-Because *Imhotep is invisible*. And sometimes, so are infographics, if you're forced to go through each one by hand! It is mainly a cheap Look Around You joke. Also, if you rotate, move and rearrange the letters you kind of get the name of the New K&L Product...
+Because *Imhotep is invisible*. And sometimes, so are infographics, if you're forced to go through each one by hand! It is mainly a cheap Look Around You joke. Also, if you rotate, move and rearrange the letters you kind of get iWonder...
